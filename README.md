@@ -1,1 +1,1 @@
-This is where i stored all my project
+This Repository will hold all of the code and queries for my portfolio projects
