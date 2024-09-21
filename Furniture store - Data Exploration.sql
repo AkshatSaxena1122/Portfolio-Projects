@@ -3,10 +3,15 @@ FROM store;
 
 -- Top Selling Categories
 
-SELECT category, ROUND(AVG(price),0) avg_price, FORMAT(ROUND(SUM(revenue),0),0) as total_revenue
-FROM store
-GROUP BY category
-ORDER BY 3 desc;
+SELECT 
+    category, 
+    SUM(sales) AS total_sales
+FROM 
+    store
+GROUP BY 
+    category
+ORDER BY 
+    total_sales DESC;
 
 -- Ranking categories based on their profit
 
