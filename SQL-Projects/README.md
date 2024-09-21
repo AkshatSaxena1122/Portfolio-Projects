@@ -8,6 +8,10 @@ This folder contains various SQL projects that demonstrate my skills in database
 
 The Furniture Store Analysis project aims to analyze sales data from a furniture store, focusing on customer behavior, product performance, and overall sales trends. This analysis provides valuable insights for strategic business decisions.
 
+### Dataset
+
+This project utilizes a dataset obtained from [Kaggle](https://www.kaggle.com/datasets/rajagrawal7089/furniture-sales-data), which contains comprehensive sales information for a furniture store.
+
 ### Features
 
 The project includes the following SQL queries:
