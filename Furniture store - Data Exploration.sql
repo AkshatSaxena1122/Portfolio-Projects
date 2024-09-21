@@ -4,19 +4,16 @@ FROM store;
 -- Top Selling Categories
 
 SELECT 
-    category, 
-    SUM(sales) AS total_sales
-FROM 
+    category, FORMAT(SUM(sales),0) AS total_sales
+FROM
     store
-GROUP BY 
-    category
-ORDER BY 
-    total_sales DESC;
+GROUP BY category
+ORDER BY 2 DESC;
 
 -- Ranking categories based on their profit
 
 SELECT category,
-	ROUND(SUM((profit_margin/100)*revenue),2) as total_profit,
+	FORMAT(ROUND(SUM((profit_margin/100)*revenue),2),2) as total_profit,
     RANK() OVER(ORDER BY SUM((profit_margin/100)*revenue) Desc) as rnk
 FROM store
 GROUP BY category;
@@ -50,7 +47,6 @@ WITH ProfitMargins AS
     FROM store
     GROUP BY brand, store_type
 )
-
 -- Retrieve results for analysis
 SELECT
     brand,
@@ -63,8 +59,8 @@ ORDER BY brand, store_type;
 -- Calculating turnover rate for each category
 -- Chair has the highest turnover rate(inventory is depleting fast). This category is at risk of running out of stock.
 SELECT category,
-	SUM(sales) as total_sales,
-		SUM(inventory) as current_inventory,
+	FORMAT(SUM(sales),0) as total_sales,
+		FORMAT(SUM(inventory),0) as current_inventory,
         ROUND((SUM(sales) / SUM(inventory)),3) as turnover_rate
 FROM store
 GROUP BY category
@@ -107,3 +103,24 @@ cte_2 AS
 SELECT *
 FROM cte_2
 WHERE rn <= 5;
+
+
+-- Finding the difference in total revenue between the highest and the lowest-selling categories
+WITH category_revenue AS
+(
+    SELECT 
+        category,
+        ROUND(SUM(revenue),2) AS total_revenue
+    FROM store
+    GROUP BY category
+)
+SELECT 
+    h.category AS HSC,                   #Higest Selling Category
+    h.total_revenue AS highest_revenue,
+    l.category AS LSC,					 #Lowest Selling Category
+    l.total_revenue AS lowest_revenue,
+    ROUND((h.total_revenue - l.total_revenue),2) AS revenue_difference
+FROM category_revenue as h
+JOIN category_revenue as l
+	ON h.total_revenue = (SELECT MAX(total_revenue) FROM category_revenue)
+	AND l.total_revenue = (SELECT MIN(total_revenue) FROM category_revenue);
