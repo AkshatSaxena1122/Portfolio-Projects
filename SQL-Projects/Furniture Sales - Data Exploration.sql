@@ -1,74 +1,50 @@
+-- Exploratory Data Analysis
+
 SELECT *
 FROM store;
 
--- Top Selling Categories
 
-SELECT 
-    category, FORMAT(SUM(sales),0) AS total_sales
-FROM
-    store
+-- Check for any missing values
+SELECT COUNT(*) as Missing_values
+FROM store
+WHERE category IS NULL OR delivery_days IS NULL OR location IS NULL OR color IS NULL OR material;
+
+
+-- Check top selling categories
+SELECT category, SUM(sales) AS total_sales
+FROM store
 GROUP BY category
 ORDER BY 2 DESC;
 
--- Ranking categories based on their profit
 
+-- Check which season has top sales
+SELECT category,season, SUM(sales) AS total_sales
+FROM store
+GROUP BY category,season
+ORDER BY 2 DESC;
+
+
+-- Check top 3 categories which made the most profit
 SELECT category,
-	FORMAT(ROUND(SUM((profit_margin/100)*revenue),2),2) as total_profit,
-    RANK() OVER(ORDER BY SUM((profit_margin/100)*revenue) Desc) as rnk
+	FORMAT(ROUND(SUM((profit_margin/100)*revenue),2),2) as total_profit
 FROM store
-GROUP BY category;
-
-
--- Average profit margin for products with more than 40 sales
-SELECT 
-    category,
-    ROUND(AVG(profit_margin), 2) AS average_profit_margin,
-    -- Dividing the profit margin into categories(High,Medium and Low)
-    CASE 
-        WHEN AVG(profit_margin) >= 30 THEN 'High'
-        WHEN AVG(profit_margin) BETWEEN 28 AND 29.99 THEN 'Medium'
-        ELSE 'Low'	
-    END AS profit_margin_category
-FROM store
-WHERE sales > 40
 GROUP BY category
-ORDER BY 2;
+ORDER BY total_profit DESC
+LIMIT 3;
 
 
--- Calculating overall profit margin by brand and store type
-WITH ProfitMargins AS
-(
-    SELECT
-        brand,
-        store_type,
-        SUM(revenue) AS total_revenue,
-        SUM(cost) AS total_cost,
-        ROUND((SUM(revenue) - SUM(cost)) / SUM(revenue) * 100,2) AS profit_margin
-    FROM store
-    GROUP BY brand, store_type
-)
--- Retrieve results for analysis
-SELECT
-    brand,
-    store_type,
-    profit_margin
-FROM ProfitMargins
-ORDER BY brand, store_type;
-
-
--- Calculating turnover rate for each category
--- Chair has the highest turnover rate(inventory is depleting fast). This category is at risk of running out of stock.
+-- Check which category has highest turnover rate(Category depleting fast from the inventory)
 SELECT category,
 	FORMAT(SUM(sales),0) as total_sales,
 		FORMAT(SUM(inventory),0) as current_inventory,
         ROUND((SUM(sales) / SUM(inventory)),3) as turnover_rate
 FROM store
 GROUP BY category
-ORDER BY turnover_rate desc;
+ORDER BY turnover_rate desc
+LIMIT 1;
   
 
-
--- Finding which location and category combinations experience the shortest delivery days
+-- Checking which location and category combination experience the shortest delivery days
 WITH delivery AS
 (
     SELECT location, category, ROUND(AVG(delivery_days),2) AS Avg_delivery_days
@@ -77,50 +53,65 @@ WITH delivery AS
 ),
 delivery_2 AS
 (
-    SELECT Location, Category, Avg_delivery_days,
-    RANK() OVER(PARTITION BY Location ORDER BY Avg_delivery_days DESC) AS ranking
+    SELECT location, Category, Avg_delivery_days,
+    RANK() OVER(PARTITION BY Location ORDER BY Avg_delivery_days ASC) AS ranking
     FROM delivery
 )
--- Ranking each combination
 SELECT *
 FROM delivery_2
-WHERE ranking <= 5;
+WHERE ranking = 1;
 
 
--- Identifying which seasons contribute the most to revenue and how different categories and materials perform in each season.
-WITH seasons_cte AS
+-- Check the correlation between location and store type for customer count
+WITH cte AS
 (
-	SELECT season, category, material, ROUND(SUM(revenue),2) as total_revenue
-    FROM store
-    GROUP BY season, category, material
-),
-cte_2 AS
+SELECT location, store_type, COUNT(*) as customer_count
+FROM store
+GROUP BY location, store_type
+),cte2 AS
 (
-	SELECT season, category, material, total_revenue,
-    RANK() OVER(PARTITION BY season ORDER BY total_revenue desc) as rn
-    FROM seasons_cte
+SELECT location, store_type, customer_count,
+ROW_NUMBER() OVER(PARTITION BY location ORDER BY customer_count desc) as ranking
+FROM cte
 )
 SELECT *
-FROM cte_2
-WHERE rn <= 5;
+FROM cte2;
 
 
--- Finding the difference in total revenue between the highest and the lowest-selling categories
-WITH category_revenue AS
+-- Check in which season the brands has given highest and lowest discount
+SELECT MAX(discount_percentage) max_discount,
+       MIN(discount_percentage) min_discount,
+       AVG(discount_percentage) avg_discount
+FROM store;
+
+WITH discount AS 
 (
-    SELECT 
-        category,
-        ROUND(SUM(revenue),2) AS total_revenue
-    FROM store
-    GROUP BY category
+SELECT brand, season, discount_percentage,
+   CASE
+         WHEN discount_percentage <= 14.95 THEN 'Lowest Discount'
+         WHEN discount_percentage BETWEEN 15 AND 30 THEN 'Highest	 Discount'
+         END AS discount_bracket
+FROM store
+),
+highest_discount AS
+(
+SELECT brand, season, discount_percentage, discount_bracket,
+           RANK() OVER(PARTITION BY brand ORDER BY discount_percentage DESC) AS rnk_high
+FROM discount
+),
+lowest_discount AS
+(
+SELECT brand, season, discount_percentage, discount_bracket,
+           RANK() OVER(PARTITION BY brand ORDER BY discount_percentage ASC) AS rnk_low
+FROM discount
 )
-SELECT 
-    h.category AS HSC,                   #Higest Selling Category
-    h.total_revenue AS highest_revenue,
-    l.category AS LSC,					 #Lowest Selling Category
-    l.total_revenue AS lowest_revenue,
-    ROUND((h.total_revenue - l.total_revenue),2) AS revenue_difference
-FROM category_revenue as h
-JOIN category_revenue as l
-	ON h.total_revenue = (SELECT MAX(total_revenue) FROM category_revenue)
-	AND l.total_revenue = (SELECT MIN(total_revenue) FROM category_revenue);
+SELECT brand, season, discount_percentage, discount_bracket
+FROM highest_discount
+WHERE rnk_high = 1
+	
+UNION ALL
+	
+SELECT brand, season, discount_percentage, discount_bracket
+FROM lowest_discount
+WHERE rnk_low = 1;
+
