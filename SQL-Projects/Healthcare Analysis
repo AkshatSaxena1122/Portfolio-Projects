@@ -1,116 +1,67 @@
--- Exploratory Data Analysis
+SELECT * FROM health;
 
-SELECT *
-FROM store;
-
-
--- Check for any missing values
-SELECT COUNT(*) as Missing_values
-FROM store
-WHERE category IS NULL OR delivery_days IS NULL OR location IS NULL OR color IS NULL OR material;
+-- Check for any missing values in key fields
+SELECT COUNT(*) AS MissingVal
+FROM health
+WHERE `Name` IS NULL OR GENDER IS NULL OR Blood_Type IS NULL OR Insurance_Provider IS NULL;
 
 
--- Check top selling categories
-SELECT category, SUM(sales) AS total_sales
-FROM store
-GROUP BY category
+-- Check how many patients are admitted to each hospital
+SELECT Hospital, COUNT(*) AS Number_of_Patients
+FROM health
+GROUP BY Hospital
 ORDER BY 2 DESC;
 
 
--- Check which season has top sales
-SELECT category,season, SUM(sales) AS total_sales
-FROM store
-GROUP BY category,season
+-- Check how many patients are covered by each insurance provider
+SELECT Insurance_Provider, COUNT(*) Number_of_Patients
+FROM health
+GROUP BY Insurance_Provider
 ORDER BY 2 DESC;
 
 
--- Check top 3 categories which made the most profit
-SELECT category,
-	FORMAT(ROUND(SUM((profit_margin/100)*revenue),2),2) as total_profit
-FROM store
-GROUP BY category
-ORDER BY total_profit DESC
-LIMIT 3;
+-- Check the most common blood type in patients
+SELECT Blood_Type, COUNT(*) as count_of_blood_type
+FROM health
+GROUP BY Blood_Type
+ORDER BY 2 DESC;
 
 
--- Check which category has highest turnover rate(Category depleting fast from the inventory)
-SELECT category,
-	FORMAT(SUM(sales),0) as total_sales,
-		FORMAT(SUM(inventory),0) as current_inventory,
-        ROUND((SUM(sales) / SUM(inventory)),3) as turnover_rate
-FROM store
-GROUP BY category
-ORDER BY turnover_rate desc
+-- Identify which doctor treated the most number of patients
+SELECT Doctor, COUNT(*) Number_of_Patients
+FROM health
+GROUP BY Doctor
+ORDER BY 2 desc
 LIMIT 1;
-  
-
--- Checking which location and category combination experience the shortest delivery days
-WITH delivery AS
-(
-    SELECT location, category, ROUND(AVG(delivery_days),2) AS Avg_delivery_days
-    FROM store
-    GROUP BY location, category
-),
-delivery_2 AS
-(
-    SELECT location, Category, Avg_delivery_days,
-    RANK() OVER(PARTITION BY Location ORDER BY Avg_delivery_days ASC) AS ranking
-    FROM delivery
-)
-SELECT *
-FROM delivery_2
-WHERE ranking = 1;
 
 
--- Check the correlation between location and store type for customer count
-WITH cte AS
-(
-SELECT location, store_type, COUNT(*) as customer_count
-FROM store
-GROUP BY location, store_type
-),cte2 AS
-(
-SELECT location, store_type, customer_count,
-ROW_NUMBER() OVER(PARTITION BY location ORDER BY customer_count desc) as ranking
-FROM cte
-)
-SELECT *
-FROM cte2;
+-- Stay duration for each patient in each hospital
+SELECT `Name`,Hospital, Date_of_Admission, Discharge_Date,
+       DATEDIFF(Discharge_Date, Date_of_Admission) AS Stay_Duration
+FROM health;
 
 
--- Check in which season the brands has given highest and lowest discount
-SELECT MAX(discount_percentage) max_discount,
-       MIN(discount_percentage) min_discount,
-       AVG(discount_percentage) avg_discount
-FROM store;
+-- Check how does is gender related to the frequency of certain medical conditions
+SELECT Gender, Medical_Condition, COUNT(*) as Gender_specific
+FROM health
+GROUP BY Gender, Medical_Condition
+ORDER BY 3 desc;
 
-WITH discount AS 
-(
-SELECT brand, season, discount_percentage,
-   CASE
-         WHEN discount_percentage <= 14.95 THEN 'Lowest Discount'
-         WHEN discount_percentage BETWEEN 15 AND 30 THEN 'Highest	 Discount'
-         END AS discount_bracket
-FROM store
-),
-highest_discount AS
-(
-SELECT brand, season, discount_percentage, discount_bracket,
-           RANK() OVER(PARTITION BY brand ORDER BY discount_percentage DESC) AS rnk_high
-FROM discount
-),
-lowest_discount AS
-(
-SELECT brand, season, discount_percentage, discount_bracket,
-           RANK() OVER(PARTITION BY brand ORDER BY discount_percentage ASC) AS rnk_low
-FROM discount
-)
-SELECT brand, season, discount_percentage, discount_bracket
-FROM highest_discount
-WHERE rnk_high = 1
-	
-UNION ALL
-	
-SELECT brand, season, discount_percentage, discount_bracket
-FROM lowest_discount
-WHERE rnk_low = 1;
+
+-- Check how many patients fall into each age bracket (Young, Middle Age, Old)
+SELECT `Name`, Age,
+CASE
+	WHEN Age BETWEEN 13 AND 24 THEN 'Young'
+    WHEN Age BETWEEN 25 AND 64 THEN 'Adult'
+    WHEN Age > 64 THEN 'Old'
+END AS Age_Bracket
+FROM health;
+
+
+-- Check what is the common Medical Condition in Young age group(13-29)
+SELECT Medical_Condition, COUNT(*) as Number_of_Patients
+FROM health
+WHERE Age BETWEEN 13 AND 24
+GROUP BY Medical_Condition
+ORDER BY Medical_Condition DESC;
+;
