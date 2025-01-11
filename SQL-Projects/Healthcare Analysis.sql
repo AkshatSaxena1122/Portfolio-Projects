@@ -1,3 +1,5 @@
+-- Exploratory Data Analysis
+
 SELECT * FROM health;
 
 -- Check for any missing values in key fields
